@@ -1,0 +1,28 @@
+
+test_name: test_full_training_1 # Name of the test, which will be used to create a results folder
+prior_test_name: SampleYaml # Name of the test which will be used to load the checkpoints
+num_epochs: 100 # Number of epochs to train for
+epoch_start_i: 0 # Start counting epochs from this number
+checkpoint_step: 5 # How often to save checkpoints (epochs)
+validation_step: 1 # How often to perform validation (epochs)
+image: None # The image you want to predict on. Only valid in "predict" mode
+continue_training: True # Whether to continue training from a checkpoint
+dataset: Data # Dataset you are using
+crop_height: 512 # Height of cropped input image to network
+crop_width: 512 # Width of cropped input image to network
+save_step: 99 # Number of epochs between saving validation images
+batch_size: 5 # Number of images in each batch
+input_channels: 1 # Number of input channels
+num_val_images: 100 # The number of images to used for validations
+h_flip: True # Whether to randomly flip the image horizontally for data augmentation
+v_flip: True # Whether to randomly flip the image vertically for data augmentation
+brightness: null # Whether to randomly change the image brightness for data augmentation. Specifies the max brightness change as a factor between 0.0 and 1.0. For example, 0.1 represents a max brightness change of 10%% (+-)
+rotation: null # Whether to randomly rotate the image for data augmentation. Specifies the max rotation angle in degrees
+model: Encoder-Decoder # The model you are using. See model_builder.py for supported models
+frontend: InceptionV4 # The frontend you are using. See frontend_builder.py for supported models
+noise: False # Whether to add gaussian noise or not
+mean: 0 # The mean value for the Gaussian noise
+sigma: 10000 # The standard deviation for the Gaussian noise 
+learning_rate: 0.0001 # Learning rate
+decay: 0.995 # Decay
+data_augmentation: False # Whether to perform data augmentation on the images
