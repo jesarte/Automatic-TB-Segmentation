@@ -26,3 +26,4 @@ sigma: 10000 # The standard deviation for the Gaussian noise
 learning_rate: 0.0001 # Learning rate
 decay: 0.995 # Decay
 data_augmentation: False # Whether to perform data augmentation on the images
+save_images: True # Whether to save Validation and Training images or not
