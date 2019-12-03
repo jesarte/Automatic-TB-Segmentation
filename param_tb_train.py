@@ -79,8 +79,8 @@ parser.add_argument('--learning_rate', type=float, default=input_parameters['lea
                     help='Learning rate')
 parser.add_argument('--decay', type=float, default=input_parameters['decay'],
                     help='Decay')
-parser.add_argument('--save_images', type=float, default=input_parameters['decay'],
-                    help='Decay')
+parser.add_argument('--save_images', type=str2bool, default=input_parameters['save_images'],
+                    help='Whether to save validation and training images or not')
 args = parser.parse_args()
 
 #Update the input_arguments dictionary with the parsed arguments
@@ -138,6 +138,8 @@ input_parameters['sigma'] = args.sigma
 input_parameters['learning_rate'] = args.learning_rate
 
 input_parameters['decay'] = args.decay
+
+input_parameters['save_images'] = args.save_images
 
 
 # Create the checkpoints directory
@@ -320,7 +322,7 @@ val_indices = random.sample(range(0, len(val_input_names)), num_vals)
 
 # Do the training here
 imcount = 0
-if save_images == True:
+if args.save_images == True:
     save_ON = 1
 save_count = 0
 epoch_step = input_parameters['save_step']
@@ -529,7 +531,7 @@ for epoch in range(start_epoch, input_parameters['num_epochs']):
 
         save_count = 0
         imcount = 0
-        if save_images == True:
+        if args.save_images == True:
             save_ON = 1
 
         target.close()
