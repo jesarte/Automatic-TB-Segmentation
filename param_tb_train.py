@@ -322,7 +322,7 @@ val_indices = random.sample(range(0, len(val_input_names)), num_vals)
 
 # Do the training here
 imcount = 0
-if save_images == True:
+if args.save_images == True:
     save_ON = 1
 save_count = 0
 epoch_step = input_parameters['save_step']
@@ -531,7 +531,7 @@ for epoch in range(start_epoch, input_parameters['num_epochs']):
 
         save_count = 0
         imcount = 0
-        if save_images == True:
+        if args.save_images == True:
             save_ON = 1
 
         target.close()
