@@ -79,6 +79,8 @@ parser.add_argument('--learning_rate', type=float, default=input_parameters['lea
                     help='Learning rate')
 parser.add_argument('--decay', type=float, default=input_parameters['decay'],
                     help='Decay')
+parser.add_argument('--save_images', type=float, default=input_parameters['decay'],
+                    help='Decay')
 args = parser.parse_args()
 
 #Update the input_arguments dictionary with the parsed arguments
@@ -215,6 +217,8 @@ network, init_fn = model_builder.build_model(model_name=input_parameters['model'
 
 loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=network, labels=net_output))
 
+#TODO meter aqui las imagenes para tensorboard
+
 # TODO cambiar el loss (en el futuro)
 
 #Create the TF summary to save the loss for Tensorboard
@@ -231,6 +235,8 @@ sess.run(tf.global_variables_initializer())
 #Create the writers for the Tensorboard summaries, one for the training loss, and the other one for the validation loss
 train_writer = tf.summary.FileWriter('./' + input_parameters['test_name'] + '_checkpoints/logs/1/train', sess.graph)
 val_writer = tf.summary.FileWriter('./' + input_parameters['test_name'] + '_checkpoints/logs/1/val', sess.graph)
+haus_writer = tf.summary.FileWriter('./' + input_parameters['test_name'] + '_checkpoints/logs/1/haus', sess.graph)
+jacc_writer = tf.summary.FileWriter('./' + input_parameters['test_name'] + '_checkpoints/logs/1/jacc', sess.graph)
 
 utils.count_params()
 
@@ -244,10 +250,9 @@ start_epoch = input_parameters['epoch_start_i']
 
 
 # Load a previous checkpoint if desired
-if os.path.exists(input_parameters['prior_test_name'] + "_checkpoints)"):
+if input_parameters['continue_training'] and os.path.exists(input_parameters['prior_test_name'] + "_checkpoints/epoch.txt"):
     model_checkpoint_name = input_parameters['prior_test_name'] + "_checkpoints/latest_model_" + input_parameters['model'] + "_" + \
                         input_parameters['dataset'] + ".ckpt"
-if input_parameters['continue_training'] and os.path.exists(input_parameters['prior_test_name'] + "_checkpoints/epoch.txt"):
     print('Loaded latest model checkpoint')
     saver.restore(sess, model_checkpoint_name)
 
@@ -270,14 +275,18 @@ targetacc = open(input_parameters['test_name'] + '_checkpoints/avg_val_scores.cs
 targetacc.write("epoch, average accuracy\n")
 targetiou = open(input_parameters['test_name'] + '_checkpoints/avg_iou_scores.csv', 'w')
 targetiou.write("epoch, average iou\n")
+targethausdorff = open(input_parameters['test_name'] + '_checkpoints/avg_hausdorff_scores.csv', 'w')
+targethausdorff.write("epoch, average hausdorff\n")
 targetloss = open(input_parameters['test_name'] + '_checkpoints/avg_loss_scores.csv', 'w')
 targetloss.write("epoch, average loss\n")
 targetvalloss = open(input_parameters['test_name'] + '_checkpoints/avg_val_loss_scores.csv', 'w')
 targetvalloss.write("epoch, average val_loss\n")
 targetacc.close
 targetiou.close
+targethausdorff.close
 targetloss.close
 targetvalloss.close
+
 
 print("\n***** Begin training *****")
 print("Dataset -->", input_parameters['dataset'])
@@ -310,15 +319,21 @@ random.seed(16)
 val_indices = random.sample(range(0, len(val_input_names)), num_vals)
 
 # Do the training here
-save_ON = 0
+imcount = 0
+if save_images == True:
+    save_ON = 1
 save_count = 0
 epoch_step = input_parameters['save_step']
+
+tfcnt = 0
+valcnt = 0
 
 for epoch in range(start_epoch, input_parameters['num_epochs']):
 
     current_losses = []
 
     cnt = 0
+
 
     # Equivalent to shuffling
     id_list = np.random.permutation(len(train_input_names))
@@ -366,13 +381,14 @@ for epoch in range(start_epoch, input_parameters['num_epochs']):
 
         #Save the loss for TensorBoard
         trainloss = tf.Summary()
-        trainloss.value.add(tag='Training Loss', simple_value=current)
-        train_writer.add_summary(trainloss, cnt)
+        trainloss.value.add(tag='Loss', simple_value=current)
+        train_writer.add_summary(trainloss, tfcnt)
         train_writer.flush()
 
 
         current_losses.append(current)
         cnt = cnt + input_parameters['batch_size']
+        tfcnt = tfcnt + input_parameters['batch_size']
         if cnt % 20 == 0:
             string_print = "Epoch = %d Count = %d Current_Loss = %.4f Time = %.2f" % (
                 epoch, cnt, current, time.time() - st)
@@ -414,11 +430,10 @@ for epoch in range(start_epoch, input_parameters['num_epochs']):
         recall_list = []
         f1_list = []
         iou_list = []
+        hausdorff_list = []
 
         save_count = save_count + 1
         print('The current count =' + str(save_count))
-        if (save_count == epoch_step or epoch == input_parameters['num_epochs']):
-            save_ON = 1;
 
         # Do the validation on a small set of validation images
         current_floss = []
@@ -436,12 +451,13 @@ for epoch in range(start_epoch, input_parameters['num_epochs']):
                                               feed_dict={net_input: input_image, net_output: gt_onehot})
 
 
-        #Write the Validation Loss to TensorBoard
+            #Write the Validation Loss to TensorBoard
             valloss = tf.Summary()
-            valloss.value.add(tag='Training Loss', simple_value=prefloss)
-            val_writer.add_summary(valloss, epoch)
+            valloss.value.add(tag='Loss', simple_value=prefloss)
+            val_writer.add_summary(valloss, valcnt)
             val_writer.flush()
 
+            valcnt = valcnt + 1
 
             gt = helpers.reverse_one_hot(helpers.one_hot_it(gt, label_values))
             current_floss.append(prefloss)
@@ -460,6 +476,19 @@ for epoch in range(start_epoch, input_parameters['num_epochs']):
             accuracy, class_accuracies, prec, rec, f1, iou, hausdorff, floss = utils.evaluate_segmentation(
                 pred=output_image, label=gt, pfloss=prefloss, num_classes=num_classes)
 
+
+            #Write the Hausdorff Distance to TensorBoard
+            haus = tf.Summary()
+            haus.value.add(tag='Hausdorff Distance', simple_value=hausdorff)
+            val_writer.add_summary(haus, valcnt)
+            val_writer.flush()
+
+            #Write the Jaccard Index to TensorBoard
+            jacc = tf.Summary()
+            jacc.value.add(tag='Jaccard Index', simple_value=iou)
+            val_writer.add_summary(jacc, valcnt)
+            val_writer.flush()
+
             file_name = utils.filepath_to_name(val_input_names[ind])
             target.write("%s, %f, %f, %f, %f, %f, %f, %f" % (file_name, accuracy, prec, rec, f1, iou, hausdorff, floss))
             for item in class_accuracies:
@@ -473,6 +502,7 @@ for epoch in range(start_epoch, input_parameters['num_epochs']):
             recall_list.append(rec)
             f1_list.append(f1)
             iou_list.append(iou)
+            hausdorff_list.append(hausdorff)
 
             gt = helpers.colour_code_segmentation(gt, label_values)
             gt = gt.astype(int)
@@ -491,9 +521,16 @@ for epoch in range(start_epoch, input_parameters['num_epochs']):
                 sitk.WriteImage(gt_tosave, input_parameters['test_name'] + '_checkpoints/' + str(
                     epoch) + '/' + file_name + '_gt.mhd')
 
-        if (save_ON == 1):
-            save_count = 0
-            save_ON = 0
+                if imcount >= 15:
+                    save_ON = 0
+
+                imcount = imcount + 1
+
+
+        save_count = 0
+        imcount = 0
+        if save_images == True:
+            save_ON = 1
 
         target.close()
 
@@ -506,6 +543,7 @@ for epoch in range(start_epoch, input_parameters['num_epochs']):
         avg_f1 = np.mean(f1_list)
         avg_iou = np.mean(iou_list)
         avg_iou_per_epoch.append(avg_iou)
+        avg_hausdorff = np.mean(hausdorff_list)
 
         print("\nAverage validation accuracy for epoch # %04d = %f . Average loss = %f" % (
             epoch, avg_score, avg_val_loss))
@@ -537,6 +575,8 @@ for epoch in range(start_epoch, input_parameters['num_epochs']):
     targetloss = open(input_parameters['test_name'] + '_checkpoints/avg_loss_scores.csv', 'a')
 
     targetvalloss = open(input_parameters['test_name'] + '_checkpoints/avg_val_loss_scores.csv', 'a')
+
+    targethausdorff = open(input_parameters['test_name'] + '_checkpoints/avg_hausdorff_scores.csv', 'a')
 
     targetacc.write("%f , %f\n" % (epoch, avg_score))
     targetiou.write("%f , %f\n" % (epoch, avg_iou))
