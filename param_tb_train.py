@@ -79,8 +79,8 @@ parser.add_argument('--learning_rate', type=float, default=input_parameters['lea
                     help='Learning rate')
 parser.add_argument('--decay', type=float, default=input_parameters['decay'],
                     help='Decay')
-parser.add_argument('--save_images', type=float, default=input_parameters['decay'],
-                    help='Decay')
+parser.add_argument('--save_images', type=str2bool, default=input_parameters['save_images'],
+                    help='Whether to save validation and training images or not')
 args = parser.parse_args()
 
 #Update the input_arguments dictionary with the parsed arguments
@@ -138,6 +138,8 @@ input_parameters['sigma'] = args.sigma
 input_parameters['learning_rate'] = args.learning_rate
 
 input_parameters['decay'] = args.decay
+
+input_parameters['save_images'] = args.save_images
 
 
 # Create the checkpoints directory
